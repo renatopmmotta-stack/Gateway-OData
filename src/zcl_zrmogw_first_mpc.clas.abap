@@ -104,8 +104,8 @@ lo_property = lo_entity_type->create_property( iv_property_name = 'Carrid' iv_ab
 lo_property->set_is_key( ).
 lo_property->set_type_edm_string( ).
 lo_property->set_maxlength( iv_max_length = 3 ). "#EC NOTEXT
-lo_property->set_creatable( abap_false ).
-lo_property->set_updatable( abap_false ).
+lo_property->set_creatable( abap_true ).
+lo_property->set_updatable( abap_true ).
 lo_property->set_sortable( abap_true ).
 lo_property->set_nullable( abap_false ).
 lo_property->set_filterable( abap_true ).
@@ -116,8 +116,8 @@ lo_property->/iwbep/if_mgw_odata_annotatabl~create_annotation( 'sap' )->add(
 lo_property = lo_entity_type->create_property( iv_property_name = 'Carrname' iv_abap_fieldname = 'CARRNAME' ). "#EC NOTEXT
 lo_property->set_type_edm_string( ).
 lo_property->set_maxlength( iv_max_length = 20 ). "#EC NOTEXT
-lo_property->set_creatable( abap_false ).
-lo_property->set_updatable( abap_false ).
+lo_property->set_creatable( abap_true ).
+lo_property->set_updatable( abap_true ).
 lo_property->set_sortable( abap_true ).
 lo_property->set_nullable( abap_false ).
 lo_property->set_filterable( abap_true ).
@@ -128,8 +128,8 @@ lo_property->/iwbep/if_mgw_odata_annotatabl~create_annotation( 'sap' )->add(
 lo_property = lo_entity_type->create_property( iv_property_name = 'Currcode' iv_abap_fieldname = 'CURRCODE' ). "#EC NOTEXT
 lo_property->set_type_edm_string( ).
 lo_property->set_maxlength( iv_max_length = 5 ). "#EC NOTEXT
-lo_property->set_creatable( abap_false ).
-lo_property->set_updatable( abap_false ).
+lo_property->set_creatable( abap_true ).
+lo_property->set_updatable( abap_true ).
 lo_property->set_sortable( abap_true ).
 lo_property->set_nullable( abap_false ).
 lo_property->set_filterable( abap_false ).
@@ -140,8 +140,8 @@ lo_property->/iwbep/if_mgw_odata_annotatabl~create_annotation( 'sap' )->add(
 lo_property = lo_entity_type->create_property( iv_property_name = 'Url' iv_abap_fieldname = 'URL' ). "#EC NOTEXT
 lo_property->set_type_edm_string( ).
 lo_property->set_maxlength( iv_max_length = 255 ). "#EC NOTEXT
-lo_property->set_creatable( abap_false ).
-lo_property->set_updatable( abap_false ).
+lo_property->set_creatable( abap_true ).
+lo_property->set_updatable( abap_true ).
 lo_property->set_sortable( abap_true ).
 lo_property->set_nullable( abap_false ).
 lo_property->set_filterable( abap_false ).
@@ -181,7 +181,7 @@ lo_entity_set->set_filter_required( abap_false ).
 *&---------------------------------------------------------------------*
 
 
-  CONSTANTS: lc_gen_date_time TYPE timestamp VALUE '20260417085620'.                  "#EC NOTEXT
+  CONSTANTS: lc_gen_date_time TYPE timestamp VALUE '20260417120823'.                  "#EC NOTEXT
   rv_last_modified = super->get_last_modified( ).
   IF rv_last_modified LT lc_gen_date_time.
     rv_last_modified = lc_gen_date_time.
