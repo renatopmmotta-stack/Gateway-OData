@@ -4,6 +4,9 @@ class ZCL_ZRMOGW_FIRST_DPC_EXT definition
   create public .
 
 public section.
+
+  methods /IWBEP/IF_MGW_APPL_SRV_RUNTIME~CREATE_DEEP_ENTITY
+    redefinition .
 protected section.
 
   methods COMPANHIAAEREASE_CREATE_ENTITY
@@ -24,6 +27,8 @@ protected section.
     redefinition .
   methods HORARIOVOOSET_GET_ENTITYSET
     redefinition .
+  methods HORARIOVOOSET_UPDATE_ENTITY
+    redefinition .
   methods VOOSET_CREATE_ENTITY
     redefinition .
   methods VOOSET_DELETE_ENTITY
@@ -34,9 +39,20 @@ protected section.
     redefinition .
   methods VOOSET_UPDATE_ENTITY
     redefinition .
-  methods HORARIOVOOSET_UPDATE_ENTITY
-    redefinition .
 private section.
+
+  methods CONEXOES_DEEP_ENTITY
+    importing
+      !IV_ENTITY_NAME type STRING optional
+      !IV_ENTITY_SET_NAME type STRING optional
+      !IV_SOURCE_NAME type STRING optional
+      !IO_DATA_PROVIDER type ref to /IWBEP/IF_MGW_ENTRY_PROVIDER
+      !IT_KEY_TAB type /IWBEP/T_MGW_NAME_VALUE_PAIR optional
+      !IT_NAVIGATION_PATH type /IWBEP/T_MGW_NAVIGATION_PATH optional
+      !IO_EXPAND type ref to /IWBEP/IF_MGW_ODATA_EXPAND
+      !IO_TECH_REQUEST_CONTEXT type ref to /IWBEP/IF_MGW_REQ_ENTITY_C optional
+    exporting
+      !ER_DEEP_ENTITY type ZCL_ZRMOGW_FIRST_MPC_EXT=>TS_CONEXOES_DEEP .
 ENDCLASS.
 
 
@@ -1991,6 +2007,251 @@ ENDMETHOD.
 
         RAISE EXCEPTION TYPE /iwbep/cx_mgw_tech_exception
           EXPORTING
+            message_container = lo_msg_container.
+
+    ENDTRY.
+
+  ENDMETHOD.
+
+
+  METHOD /iwbep/if_mgw_appl_srv_runtime~create_deep_entity.
+
+    DATA ls_conexoes TYPE zcl_zrmogw_first_mpc_ext=>ts_conexoes_deep.
+
+    me->conexoes_deep_entity(
+      EXPORTING
+        iv_entity_name          = iv_entity_name
+        iv_entity_set_name      = iv_entity_set_name
+        iv_source_name          = iv_source_name
+        io_data_provider        = io_data_provider
+        it_key_tab              = it_key_tab
+        it_navigation_path      = it_navigation_path
+        io_expand               = io_expand
+        io_tech_request_context = io_tech_request_context
+      IMPORTING
+        er_deep_entity          = ls_conexoes
+    ).
+
+    copy_data_to_ref(
+      EXPORTING
+        is_data = ls_conexoes
+      CHANGING
+        cr_data = er_deep_entity
+    ).
+
+  ENDMETHOD.
+
+
+  METHOD conexoes_deep_entity.
+
+    DATA: ls_request  TYPE zcl_zrmogw_first_mpc_ext=>ts_conexoes_deep,
+          ls_scarr    TYPE scarr,
+          ls_spfli    TYPE spfli,
+          lv_msg      TYPE string.
+
+    TRY.
+
+        DATA(lo_msg_container) = mo_context->get_message_container( ).
+
+        "------------------------------------------------------------
+        " Ler payload deep insert
+        "------------------------------------------------------------
+        io_data_provider->read_entry_data(
+          IMPORTING
+            es_data = ls_request ).
+
+        "------------------------------------------------------------
+        " Validação básica do cabeçalho SCARR
+        "------------------------------------------------------------
+        IF ls_request-carrid IS INITIAL.
+          lo_msg_container->add_message_text_only(
+            EXPORTING
+              iv_msg_type = 'E'
+              iv_msg_text = 'Campo CARRID é obrigatório'
+          ).
+
+          RAISE EXCEPTION TYPE /iwbep/cx_mgw_busi_exception
+            EXPORTING
+              textid            = /iwbep/cx_mgw_busi_exception=>business_error
+              message_container = lo_msg_container.
+        ENDIF.
+
+        IF ls_request-carrname IS INITIAL.
+          lo_msg_container->add_message_text_only(
+            EXPORTING
+              iv_msg_type = 'E'
+              iv_msg_text = 'Campo CARRNAME é obrigatório'
+          ).
+
+          RAISE EXCEPTION TYPE /iwbep/cx_mgw_busi_exception
+            EXPORTING
+              textid            = /iwbep/cx_mgw_busi_exception=>business_error
+              message_container = lo_msg_container.
+        ENDIF.
+
+        "------------------------------------------------------------
+        " Verificar se a companhia já existe
+        "------------------------------------------------------------
+        SELECT SINGLE carrid
+          FROM scarr
+          INTO @DATA(lv_carrid_existente)
+          WHERE carrid = @ls_request-carrid.
+
+        IF sy-subrc = 0.
+          lv_msg = |Companhia aérea { ls_request-carrid } já existe|.
+
+          lo_msg_container->add_message_text_only(
+            EXPORTING
+              iv_msg_type = 'E'
+              iv_msg_text = CONV bapi_msg( lv_msg )
+          ).
+
+          RAISE EXCEPTION TYPE /iwbep/cx_mgw_busi_exception
+            EXPORTING
+              textid            = /iwbep/cx_mgw_busi_exception=>business_error
+              message_container = lo_msg_container.
+        ENDIF.
+
+        "------------------------------------------------------------
+        " Montar e inserir SCARR
+        "------------------------------------------------------------
+        CLEAR ls_scarr.
+        ls_scarr-carrid   = ls_request-carrid.
+        ls_scarr-carrname = ls_request-carrname.
+        ls_scarr-currcode = ls_request-currcode.
+        ls_scarr-url      = ls_request-url.
+
+        INSERT scarr FROM @ls_scarr.
+        IF sy-subrc <> 0.
+          ROLLBACK WORK.
+
+          lo_msg_container->add_message_text_only(
+            EXPORTING
+              iv_msg_type = 'E'
+              iv_msg_text = 'Erro ao inserir registro na SCARR'
+          ).
+
+          RAISE EXCEPTION TYPE /iwbep/cx_mgw_tech_exception
+            EXPORTING
+              textid            = /iwbep/cx_mgw_tech_exception=>internal_error
+              message_container = lo_msg_container.
+        ENDIF.
+
+        "------------------------------------------------------------
+        " Inserir itens SPFLI
+        "------------------------------------------------------------
+        LOOP AT ls_request-companhiaaereatohorariovoo ASSIGNING FIELD-SYMBOL(<fs_horario>).
+
+          "Validação mínima do item
+          IF <fs_horario>-connid IS INITIAL.
+            ROLLBACK WORK.
+
+            lo_msg_container->add_message_text_only(
+              EXPORTING
+                iv_msg_type = 'E'
+                iv_msg_text = 'Campo CONNID é obrigatório nos itens de horário de voo'
+            ).
+
+            RAISE EXCEPTION TYPE /iwbep/cx_mgw_busi_exception
+              EXPORTING
+                textid            = /iwbep/cx_mgw_busi_exception=>business_error
+                message_container = lo_msg_container.
+          ENDIF.
+
+          "Verifica duplicidade em SPFLI
+          SELECT SINGLE carrid, connid
+            FROM spfli
+            INTO @DATA(lv_spfli_existente)
+            WHERE carrid = @ls_request-carrid
+              AND connid = @<fs_horario>-connid.
+
+          IF sy-subrc = 0.
+            ROLLBACK WORK.
+
+            lv_msg = |Conexão { ls_request-carrid }/{ <fs_horario>-connid } já existe|.
+
+            lo_msg_container->add_message_text_only(
+              EXPORTING
+                iv_msg_type = 'E'
+                iv_msg_text = CONV bapi_msg( lv_msg )
+            ).
+
+            RAISE EXCEPTION TYPE /iwbep/cx_mgw_busi_exception
+              EXPORTING
+                textid            = /iwbep/cx_mgw_busi_exception=>business_error
+                message_container = lo_msg_container.
+          ENDIF.
+
+          CLEAR ls_spfli.
+          ls_spfli-carrid    = ls_request-carrid.
+          ls_spfli-connid    = <fs_horario>-connid.
+          ls_spfli-countryfr = <fs_horario>-countryfr.
+          ls_spfli-cityfrom  = <fs_horario>-cityfrom.
+          ls_spfli-airpfrom  = <fs_horario>-airpfrom.
+          ls_spfli-countryto = <fs_horario>-countryto.
+          ls_spfli-cityto    = <fs_horario>-cityto.
+          ls_spfli-airpto    = <fs_horario>-airpto.
+          ls_spfli-fltime    = <fs_horario>-fltime.
+          ls_spfli-deptime   = <fs_horario>-deptime.
+          ls_spfli-arrtime   = <fs_horario>-arrtime.
+          ls_spfli-distance  = <fs_horario>-distance.
+          ls_spfli-distid    = <fs_horario>-distid.
+          ls_spfli-fltype    = <fs_horario>-fltype.
+          ls_spfli-period    = <fs_horario>-period.
+
+          INSERT spfli FROM @ls_spfli.
+          IF sy-subrc <> 0.
+            ROLLBACK WORK.
+
+            lv_msg = |Erro ao inserir conexão { ls_spfli-carrid }/{ ls_spfli-connid }|.
+
+            lo_msg_container->add_message_text_only(
+              EXPORTING
+                iv_msg_type = 'E'
+                iv_msg_text = CONV bapi_msg( lv_msg )
+            ).
+
+            RAISE EXCEPTION TYPE /iwbep/cx_mgw_tech_exception
+              EXPORTING
+                textid            = /iwbep/cx_mgw_tech_exception=>internal_error
+                message_container = lo_msg_container.
+          ENDIF.
+
+        ENDLOOP.
+
+        "------------------------------------------------------------
+        " Commit final
+        "------------------------------------------------------------
+        COMMIT WORK.
+
+        "------------------------------------------------------------
+        " Montar retorno
+        "------------------------------------------------------------
+        er_deep_entity = CORRESPONDING #( ls_request ).
+
+      CATCH /iwbep/cx_mgw_busi_exception INTO DATA(lx_busi).
+        RAISE EXCEPTION lx_busi.
+
+      CATCH /iwbep/cx_mgw_tech_exception INTO DATA(lx_tech).
+        RAISE EXCEPTION lx_tech.
+
+      CATCH cx_root INTO DATA(lx_root).
+
+        ROLLBACK WORK.
+
+        lv_msg = lx_root->get_text( ).
+
+        lo_msg_container = mo_context->get_message_container( ).
+
+        lo_msg_container->add_message_text_only(
+          EXPORTING
+            iv_msg_type = 'E'
+            iv_msg_text = CONV bapi_msg( lv_msg )
+        ).
+
+        RAISE EXCEPTION TYPE /iwbep/cx_mgw_tech_exception
+          EXPORTING
+            textid            = /iwbep/cx_mgw_tech_exception=>internal_error
             message_container = lo_msg_container.
 
     ENDTRY.
