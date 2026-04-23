@@ -2016,28 +2016,32 @@ ENDMETHOD.
 
   METHOD /iwbep/if_mgw_appl_srv_runtime~create_deep_entity.
 
-    DATA ls_conexoes TYPE zcl_zrmogw_first_mpc_ext=>ts_conexoes_deep.
+    CASE iv_entity_name.
+      WHEN 'CompanhiaAerea'.
+        DATA ls_conexoes TYPE zcl_zrmogw_first_mpc_ext=>ts_conexoes_deep.
 
-    me->conexoes_deep_entity(
-      EXPORTING
-        iv_entity_name          = iv_entity_name
-        iv_entity_set_name      = iv_entity_set_name
-        iv_source_name          = iv_source_name
-        io_data_provider        = io_data_provider
-        it_key_tab              = it_key_tab
-        it_navigation_path      = it_navigation_path
-        io_expand               = io_expand
-        io_tech_request_context = io_tech_request_context
-      IMPORTING
-        er_deep_entity          = ls_conexoes
-    ).
+        me->conexoes_deep_entity(
+          EXPORTING
+            iv_entity_name          = iv_entity_name
+            iv_entity_set_name      = iv_entity_set_name
+            iv_source_name          = iv_source_name
+            io_data_provider        = io_data_provider
+            it_key_tab              = it_key_tab
+            it_navigation_path      = it_navigation_path
+            io_expand               = io_expand
+            io_tech_request_context = io_tech_request_context
+          IMPORTING
+            er_deep_entity          = ls_conexoes
+        ).
 
-    copy_data_to_ref(
-      EXPORTING
-        is_data = ls_conexoes
-      CHANGING
-        cr_data = er_deep_entity
-    ).
+        copy_data_to_ref(
+          EXPORTING
+            is_data = ls_conexoes
+          CHANGING
+            cr_data = er_deep_entity
+        ).
+      WHEN OTHERS.
+    ENDCASE.
 
   ENDMETHOD.
 

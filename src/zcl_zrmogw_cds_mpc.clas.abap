@@ -100,7 +100,7 @@ get_last_modified_rds_4( ).
 *&---------------------------------------------------------------------*
 
 
-  CONSTANTS: lc_gen_date_time TYPE timestamp VALUE '20260422222441'.                  "#EC NOTEXT
+  CONSTANTS: lc_gen_date_time TYPE timestamp VALUE '20260423092029'.                  "#EC NOTEXT
  DATA: lv_rds_last_modified TYPE timestamp .
   rv_last_modified = super->get_last_modified( ).
   IF rv_last_modified LT lc_gen_date_time.
@@ -125,7 +125,7 @@ get_last_modified_rds_4( ).
 *   4
 *&---------------------------------------------------------------------*
 *    @@TYPE_SWITCH:
-    CONSTANTS: co_gen_date_time TYPE timestamp VALUE '20260423032441'.
+    CONSTANTS: co_gen_date_time TYPE timestamp VALUE '20260423142029'.
     TRY.
         rv_last_modified_rds = CAST cl_sadl_gw_model_exposure( if_sadl_gw_model_exposure_data~get_model_exposure( ) )->get_last_modified( ).
       CATCH cx_root ##CATCH_ALL.
@@ -138,7 +138,7 @@ get_last_modified_rds_4( ).
 
 
   method IF_SADL_GW_MODEL_EXPOSURE_DATA~GET_MODEL_EXPOSURE.
-    CONSTANTS: co_gen_timestamp TYPE timestamp VALUE '20260423032441'.
+    CONSTANTS: co_gen_timestamp TYPE timestamp VALUE '20260423142029'.
     DATA(lv_sadl_xml) =
                |<?xml version="1.0" encoding="utf-16"?>|  &
                |<sadl:definition xmlns:sadl="http://sap.com/sap.nw.f.sadl" syntaxVersion="" >|  &
